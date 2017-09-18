@@ -2,3 +2,13 @@ build
 node_modules
 .vscode
 *.dll
+*.o
+*.lo
+*.la
+*.log
+.deps
+.libs
+*autom4te.cache*
+1.zip
+libmtp.mpd/config.log
+libmtp.mpd/doc/Makefile*
