@@ -5,13 +5,22 @@
 				"auto.gypi"
 			],
 			"sources": [
-				"src\\node-mtp.cc"
+				"src/node-mtp.cc"
 			],
-			"include_dirs+": [
-				"libmtp.mpd\\src"
-			],
-			"libraries": [ 
-				"..\\libmtp.mpd\\src\\.libs\\libmtp.dll.a" 
+			"conditions" : [
+				['OS=="win"', {
+					"include_dirs+": [
+						"libmtp.mpd/src"
+					],
+					"libraries": [ 
+						"../libmtp.mpd/src/.libs/libmtp.dll.a" 
+					]
+				}],
+				['OS!="win"', {
+					"libraries": [
+						"<!@(pkg-config libmtp --libs)"
+                    ]
+				}]
 			]
 		}
 	],
