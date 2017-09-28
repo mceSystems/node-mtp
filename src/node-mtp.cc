@@ -8,7 +8,21 @@
 #include "nbind/nbind.h"
 #include "libmtp.h"
 
-typedef LIBMTP_raw_device_t raw_device_t;
+class raw_device_t{
+public:
+	raw_device_t(LIBMTP_raw_device_t rawDevice):m_rawDevice(rawDevice){}
+	explicit raw_device_t(const raw_device_t* rawDevice):m_rawDevice(rawDevice->m_rawDevice){}
+
+	uint32_t getBusLocation(){return m_rawDevice.bus_location;}
+	void setBusLocation(const uint32_t busLocation){m_rawDevice.bus_location = busLocation;}
+
+	uint8_t getDevNum(){return m_rawDevice.devnum;}
+	void setDevNum(const uint8_t devNum){m_rawDevice.devnum = devNum;}
+	
+	LIBMTP_raw_device_t* get(){return &m_rawDevice;}
+private:
+	LIBMTP_raw_device_t m_rawDevice;
+};
 
 class file_t{
 public:
@@ -80,7 +94,6 @@ public:
 	}
 };
 
-
 int FileProgressCallback (uint64_t const sent, uint64_t const total, void const * const data)
 {
 	nbind::cbFunction cb = *((nbind::cbFunction*)data);
@@ -88,14 +101,63 @@ int FileProgressCallback (uint64_t const sent, uint64_t const total, void const 
 	return 0;
 }
 
+uint16_t MTPDataPutCallback(void* params, void* priv, uint32_t sendlen, unsigned char *data, uint32_t *putlen)
+{
+	nbind::cbFunction cb = *((nbind::cbFunction*)priv);
+	nbind::Buffer buf(data, sendlen);
+	
+	if (false == cb.call<bool>(buf)){
+		return LIBMTP_HANDLER_RETURN_ERROR;
+	}
+
+	*putlen = sendlen;
+
+	return LIBMTP_HANDLER_RETURN_OK;
+}
+
+uint16_t MTPDataGetCallback (void* params, void* priv,	uint32_t wantlen, unsigned char *data, uint32_t *gotlen)
+{
+	nbind::cbFunction cb = *((nbind::cbFunction*)priv);
+	nbind::Buffer buf = cb.call<nbind::Buffer>(wantlen);
+
+	if (0 == buf.length()){
+		return LIBMTP_HANDLER_RETURN_ERROR;
+	}
+
+	*gotlen = buf.length();
+	memcpy(data, buf.data(), buf.length());
+
+	return LIBMTP_HANDLER_RETURN_OK;
+}
+
 int Get_File_To_File(mtpdevice_t device, uint32_t const id,	const std::string path, nbind::cbFunction& cb)
 {
 	return LIBMTP_Get_File_To_File(device.m_device, id, path.c_str(), FileProgressCallback, (const void*)&cb);
 }
 
+int Get_File_To_File_Descriptor(mtpdevice_t device,	uint32_t const id, int const fd, nbind::cbFunction& cb)
+{
+	return LIBMTP_Get_File_To_File_Descriptor(device.m_device, id, fd, FileProgressCallback, (const void*)&cb);
+}
+
+int Get_File_To_Handler(mtpdevice_t device, uint32_t const id, nbind::cbFunction& dataPutCB, nbind::cbFunction& progressCB)
+{
+	return LIBMTP_Get_File_To_Handler(device.m_device, id, MTPDataPutCallback, (void*)&dataPutCB, FileProgressCallback, (const void*)&progressCB);
+}
+
 int Send_File_From_File(mtpdevice_t device,	const std::string path, file_t filedata, nbind::cbFunction& cb)
 {
 	return LIBMTP_Send_File_From_File(device.m_device, path.c_str(), filedata.get(), FileProgressCallback, (const void*)&cb);
+}
+
+int Send_File_From_File_Descriptor(mtpdevice_t device, const int fd, file_t filedata, nbind::cbFunction& cb)
+{
+	return LIBMTP_Send_File_From_File_Descriptor(device.m_device, fd, filedata.get(), FileProgressCallback, (const void*)&cb);
+}
+
+int Send_File_From_Handler(mtpdevice_t device,	nbind::cbFunction& dataGetCB, file_t filedata, nbind::cbFunction& progressCB)
+{
+	return LIBMTP_Send_File_From_Handler(device.m_device, MTPDataGetCallback, (void*)&dataGetCB, filedata.get(), FileProgressCallback, (const void*)&progressCB);
 }
 
 std::vector<file_t> Get_Files_And_Folders(mtpdevice_t device, uint32_t const storage, uint32_t const parent)
@@ -133,12 +195,12 @@ void Release_Device(mtpdevice_t device)
 
 mtpdevice_t Open_Raw_Device_Uncached(raw_device_t rawDevice)
 {
-	return mtpdevice_t(LIBMTP_Open_Raw_Device_Uncached(&rawDevice));
+	return mtpdevice_t(LIBMTP_Open_Raw_Device_Uncached(rawDevice.get()));
 }
 
 mtpdevice_t Open_Raw_Device(raw_device_t rawDevice)
 {
-	return mtpdevice_t(LIBMTP_Open_Raw_Device(&rawDevice));
+	return mtpdevice_t(LIBMTP_Open_Raw_Device(rawDevice.get()));
 }
 
 void Detect_Raw_Devices(nbind::cbFunction& cb)
@@ -191,6 +253,10 @@ NBIND_CLASS(devicestorage_t){
 }
 
 NBIND_CLASS(raw_device_t){
+	construct<LIBMTP_raw_device_t>();
+	construct<const raw_device_t*>();
+	getset(getBusLocation,setBusLocation);
+	getset(getDevNum,setDevNum);
 }
 
 NBIND_GLOBAL() {
@@ -203,5 +269,9 @@ NBIND_GLOBAL() {
 	function(Get_Storage);
 	function(Get_Files_And_Folders);
 	function(Get_File_To_File);
+	function(Get_File_To_File_Descriptor);
+	function(Get_File_To_Handler);
 	function(Send_File_From_File);
+	function(Send_File_From_File_Descriptor);
+	function(Send_File_From_Handler);
   }
