@@ -8,6 +8,32 @@
 #include "nbind/nbind.h"
 #include "libmtp.h"
 
+#include <io.h>
+
+class databuffer_t{
+public:
+	databuffer_t(unsigned char* data, uint32_t size, uint32_t len):m_data(data),m_size(size),m_length(len){}
+	explicit databuffer_t(const databuffer_t* db):m_data(db->m_data),m_size(db->m_size),m_length(db->m_length){}
+
+	uint32_t getLength(){return m_length;}
+	uint32_t getSize(){return m_size;}
+	
+	void write(nbind::Buffer buf, uint32_t len){
+		memcpy(&(m_data[m_length]), buf.data(), min(m_size-m_length, buf.length()));
+		m_length += len;
+	}
+	
+	void read(nbind::Buffer buf, uint32_t len, uint32_t start){
+		memcpy(buf.data(), &(m_data[start]), min(m_length-start, buf.length()));
+	}
+
+private:
+	unsigned char* m_data;
+	uint32_t m_length;
+	uint32_t m_size;
+};
+
+
 class raw_device_t{
 public:
 	raw_device_t(LIBMTP_raw_device_t rawDevice):m_rawDevice(rawDevice){}
@@ -101,11 +127,12 @@ int FileProgressCallback (uint64_t const sent, uint64_t const total, void const 
 	return 0;
 }
 
+
 uint16_t MTPDataPutCallback(void* params, void* priv, uint32_t sendlen, unsigned char *data, uint32_t *putlen)
 {
 	nbind::cbFunction cb = *((nbind::cbFunction*)priv);
-	nbind::Buffer buf(data, sendlen);
-	
+	databuffer_t buf(data, sendlen, sendlen);
+
 	if (false == cb.call<bool>(buf)){
 		return LIBMTP_HANDLER_RETURN_ERROR;
 	}
@@ -118,14 +145,13 @@ uint16_t MTPDataPutCallback(void* params, void* priv, uint32_t sendlen, unsigned
 uint16_t MTPDataGetCallback (void* params, void* priv,	uint32_t wantlen, unsigned char *data, uint32_t *gotlen)
 {
 	nbind::cbFunction cb = *((nbind::cbFunction*)priv);
-	nbind::Buffer buf = cb.call<nbind::Buffer>(wantlen);
-
-	if (0 == buf.length()){
+	databuffer_t buf(data, wantlen, 0);
+	
+	if (false == cb.call<bool>(buf)){
 		return LIBMTP_HANDLER_RETURN_ERROR;
 	}
-
-	*gotlen = buf.length();
-	memcpy(data, buf.data(), buf.length());
+	
+	*gotlen = buf.getLength();
 
 	return LIBMTP_HANDLER_RETURN_OK;
 }
@@ -257,6 +283,14 @@ NBIND_CLASS(raw_device_t){
 	construct<const raw_device_t*>();
 	getset(getBusLocation,setBusLocation);
 	getset(getDevNum,setDevNum);
+}
+
+NBIND_CLASS(databuffer_t){
+	construct<const databuffer_t*>();
+	getter(getLength);
+	getter(getSize);
+	method(read);
+	method(write);
 }
 
 NBIND_GLOBAL() {
