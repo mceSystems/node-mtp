@@ -1,6 +1,8 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <mutex>
+#include <future>
 #ifdef _WIN32
 #include <WinSock2.h>
 #endif
@@ -32,7 +34,6 @@ private:
 	uint32_t m_length;
 	uint32_t m_size;
 };
-
 
 class raw_device_t{
 public:
@@ -186,6 +187,116 @@ int Send_File_From_Handler(mtpdevice_t device,	nbind::cbFunction& dataGetCB, fil
 	return LIBMTP_Send_File_From_Handler(device.m_device, MTPDataGetCallback, (void*)&dataGetCB, filedata.get(), FileProgressCallback, (const void*)&progressCB);
 }
 
+class SharedBuffer {
+public:
+	SharedBuffer() :data(0),size(0),done(false) {}
+	std::mutex mx;
+	std::condition_variable cv_put;
+	std::condition_variable cv_get;
+	unsigned char* data;
+	uint32_t size;
+	bool done;
+};
+
+uint16_t MTPDataGet(void* params, void* priv,
+	uint32_t wantlen, unsigned char *data, uint32_t *gotlen)
+{
+	SharedBuffer* shared_buf = (SharedBuffer*)priv;
+
+	uint32_t size = 0;
+	*gotlen = 0;
+
+	while (true) {
+		std::unique_lock<std::mutex> lk(shared_buf->mx);
+		shared_buf->cv_put.wait(lk, [shared_buf] { return shared_buf->done || shared_buf->size; });
+
+		if (shared_buf->size) {
+			size = min(wantlen-(*gotlen), shared_buf->size);
+			memcpy(data, shared_buf->data, size);
+			*gotlen += size;
+			
+			shared_buf->size -= size;
+			shared_buf->data += size;
+			
+			if (0 == shared_buf->size) {
+				shared_buf->cv_get.notify_one();
+			}
+
+			if (*gotlen == wantlen) {
+				break;
+			}
+		}
+		
+		if (shared_buf->done) {
+			return LIBMTP_HANDLER_RETURN_CANCEL;
+		}
+	}
+	
+	return LIBMTP_HANDLER_RETURN_OK;
+}
+
+uint16_t MTPDataPut(void* params, void* priv,
+	uint32_t sendlen, unsigned char *data, uint32_t *putlen)
+{
+	SharedBuffer* shared_buf = (SharedBuffer*)priv;
+
+	{
+		std::lock_guard<std::mutex> lk(shared_buf->mx);
+		shared_buf->data = data;
+		shared_buf->size = sendlen;
+	}
+	
+	shared_buf->cv_put.notify_one();
+
+	std::unique_lock<std::mutex> lk(shared_buf->mx);
+	shared_buf->cv_get.wait(lk, [shared_buf] { return shared_buf->done || !shared_buf->size; });
+
+	if ((shared_buf->done) && (0 != shared_buf->size)) {
+		return LIBMTP_HANDLER_RETURN_CANCEL;
+	}
+
+	*putlen = sendlen - shared_buf->size;
+
+	return LIBMTP_HANDLER_RETURN_OK;
+}
+
+int Send_File_From_Device(mtpdevice_t device, mtpdevice_t fromDevice, uint32_t const id, file_t filedata, nbind::cbFunction& progressCB)
+{
+	SharedBuffer* shared_buf = new SharedBuffer();
+	
+	LIBMTP_mtpdevice_t* dev = fromDevice.m_device;
+	std::future<int> resultGet = std::async([dev, shared_buf, id] {
+			int result = LIBMTP_Get_File_To_Handler(dev, id, MTPDataPut, shared_buf, nullptr, nullptr);
+		{
+			std::lock_guard<std::mutex> lk(shared_buf->mx);
+			shared_buf->done = true;
+		}
+		shared_buf->cv_put.notify_all();
+		return result;
+	});
+	
+	int resultSend = LIBMTP_Send_File_From_Handler(device.m_device, MTPDataGet, shared_buf, filedata.get(), FileProgressCallback, (const void*)&progressCB);
+	{
+		std::lock_guard<std::mutex> lk(shared_buf->mx);
+		shared_buf->done = true;
+	}
+	shared_buf->cv_get.notify_all();
+
+	int result = 0;
+	
+	if (0 != resultGet.get()){
+		result = 1;
+	}
+	
+	if (0 != resultSend){
+		result = 1;
+	}
+
+	delete shared_buf;
+
+	return result;
+}
+
 std::vector<file_t> Get_Files_And_Folders(mtpdevice_t device, uint32_t const storage, uint32_t const parent)
 {
 	std::vector<file_t> result;
@@ -200,6 +311,18 @@ std::vector<file_t> Get_Files_And_Folders(mtpdevice_t device, uint32_t const sto
 
 	return result;
 }
+
+file_t Get_Filemetadata(mtpdevice_t device, uint32_t const id )
+{
+	LIBMTP_file_t* file = LIBMTP_Get_Filemetadata(device.m_device, id);
+
+	file_t result(file);
+
+	LIBMTP_destroy_file_t(file);
+	
+	return result;
+}
+
 
 int Get_Storage(mtpdevice_t device, const int sortby)
 {
@@ -308,4 +431,6 @@ NBIND_GLOBAL() {
 	function(Send_File_From_File);
 	function(Send_File_From_File_Descriptor);
 	function(Send_File_From_Handler);
+	function(Send_File_From_Device);
+	function(Get_Filemetadata);
   }
