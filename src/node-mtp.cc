@@ -5,17 +5,17 @@
 #include <future>
 #ifdef _WIN32
 #include <WinSock2.h>
+#else
+#define min(x,y) x<y?x:y
 #endif
 
 #include "nbind/nbind.h"
 #include "libmtp.h"
 
-#include <io.h>
-
 class databuffer_t{
 public:
 	databuffer_t(unsigned char* data, uint32_t size, uint32_t len):m_data(data),m_size(size),m_length(len){}
-	explicit databuffer_t(const databuffer_t* db):m_data(db->m_data),m_size(db->m_size),m_length(db->m_length){}
+	databuffer_t(const databuffer_t& db):m_data(db.m_data),m_size(db.m_size),m_length(db.m_length){}
 
 	uint32_t getLength(){return m_length;}
 	uint32_t getSize(){return m_size;}
@@ -38,7 +38,7 @@ private:
 class raw_device_t{
 public:
 	raw_device_t(LIBMTP_raw_device_t rawDevice):m_rawDevice(rawDevice){}
-	explicit raw_device_t(const raw_device_t* rawDevice):m_rawDevice(rawDevice->m_rawDevice){}
+	raw_device_t(const raw_device_t& rawDevice):m_rawDevice(rawDevice.m_rawDevice){}
 
 	uint32_t getBusLocation(){return m_rawDevice.bus_location;}
 	void setBusLocation(const uint32_t busLocation){m_rawDevice.bus_location = busLocation;}
@@ -61,7 +61,7 @@ public:
 		}
 		m_file.filename = (char*)m_name.c_str();
 	}
-	explicit file_t(const file_t* file) : m_file(file->m_file),m_name(file->m_name){
+	file_t(const file_t& file) : m_file(file.m_file),m_name(file.m_name){
 		m_file.filename = (char*)m_name.c_str();
 	}
 	
@@ -93,7 +93,7 @@ private:
 class devicestorage_t{
 public:
 	devicestorage_t(LIBMTP_devicestorage_t* storage=nullptr) : m_storage(*storage),m_description(storage->StorageDescription){}
-	explicit devicestorage_t(const devicestorage_t* storage) : m_storage(storage->m_storage),m_description(storage->m_description){};
+	devicestorage_t(const devicestorage_t& storage) : m_storage(storage.m_storage),m_description(storage.m_description){};
 	
 	uint32_t getId(){return m_storage.id;}
 	void setId(const uint32_t id){m_storage.id = id;}
@@ -110,7 +110,7 @@ class mtpdevice_t
 {
 public:
 	mtpdevice_t(LIBMTP_mtpdevice_t* device=nullptr) : m_device(device){}
-	explicit mtpdevice_t(const mtpdevice_t* device) : m_device(device->m_device){}
+	mtpdevice_t(const mtpdevice_t& device) : m_device(device.m_device){}
 	LIBMTP_mtpdevice_t* m_device;
 	std::vector<devicestorage_t> getStorages(){
 		std::vector<devicestorage_t> result;
@@ -379,7 +379,7 @@ void Init()
 
 NBIND_CLASS(file_t){
 	construct<>();
-	construct<const file_t*>();
+	construct<const file_t&>();
 	getset(getName,setName);
 	getset(getId,setId);
 	getset(getType,setType);
@@ -390,26 +390,26 @@ NBIND_CLASS(file_t){
 
 NBIND_CLASS(mtpdevice_t){
 	construct<>();
-	construct<const mtpdevice_t*>();
+	construct<const mtpdevice_t&>();
 	method(getStorages);
 }
 
 NBIND_CLASS(devicestorage_t){
 	construct<>();
-	construct<const devicestorage_t*>();
+	construct<const devicestorage_t&>();
 	getset(getId,setId);
 	getset(getDescription,setDescription);
 }
 
 NBIND_CLASS(raw_device_t){
 	construct<LIBMTP_raw_device_t>();
-	construct<const raw_device_t*>();
+	construct<const raw_device_t&>();
 	getset(getBusLocation,setBusLocation);
 	getset(getDevNum,setDevNum);
 }
 
 NBIND_CLASS(databuffer_t){
-	construct<const databuffer_t*>();
+	construct<const databuffer_t&>();
 	getter(getLength);
 	getter(getSize);
 	method(read);

@@ -1,6 +1,6 @@
 var nbind = require('nbind');
 const path = require("path");
-var lib = nbind.init(path.resolve(__dirname, "build/release")).lib;
+var lib = nbind.init(path.resolve(__dirname, "build/Release")).lib;
 var mtp = exports = module.exports = lib;
 
 mtp.STORAGE_SORTBY_NOTSORTED = 0;
