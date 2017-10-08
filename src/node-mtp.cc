@@ -5,12 +5,12 @@
 #include <future>
 #ifdef _WIN32
 #include <WinSock2.h>
-#else
-#define min(x,y) x<y?x:y
 #endif
 
 #include "nbind/nbind.h"
 #include "libmtp.h"
+
+#define _min(x,y) x<y?x:y
 
 class databuffer_t{
 public:
@@ -21,12 +21,12 @@ public:
 	uint32_t getSize(){return m_size;}
 	
 	void write(nbind::Buffer buf, uint32_t len){
-		memcpy(&(m_data[m_length]), buf.data(), min(m_size-m_length, buf.length()));
+		memcpy(&(m_data[m_length]), buf.data(), _min(m_size-m_length, buf.length()));
 		m_length += len;
 	}
 	
 	void read(nbind::Buffer buf, uint32_t len, uint32_t start){
-		memcpy(buf.data(), &(m_data[start]), min(m_length-start, buf.length()));
+		memcpy(buf.data(), &(m_data[start]), _min(m_length-start, buf.length()));
 	}
 
 private:
@@ -211,7 +211,7 @@ uint16_t MTPDataGet(void* params, void* priv,
 		shared_buf->cv_put.wait(lk, [shared_buf] { return shared_buf->done || shared_buf->size; });
 
 		if (shared_buf->size) {
-			size = min(wantlen-(*gotlen), shared_buf->size);
+			size = _min(wantlen-(*gotlen), shared_buf->size);
 			memcpy(data, shared_buf->data, size);
 			*gotlen += size;
 			
