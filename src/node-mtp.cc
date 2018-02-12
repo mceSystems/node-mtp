@@ -10,7 +10,9 @@
 #include "nbind/nbind.h"
 #include "libmtp.h"
 
-#define _min(x,y) x<y?x:y
+#ifndef min
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+#endif
 
 class databuffer_t{
 public:
@@ -21,12 +23,12 @@ public:
 	uint32_t getSize(){return m_size;}
 	
 	void write(nbind::Buffer buf, uint32_t len){
-		memcpy(&(m_data[m_length]), buf.data(), _min(m_size-m_length, buf.length()));
+		memcpy(&(m_data[m_length]), buf.data(), min(m_size-m_length, buf.length()));
 		m_length += len;
 	}
 	
 	void read(nbind::Buffer buf, uint32_t len, uint32_t start){
-		memcpy(buf.data(), &(m_data[start]), _min(m_length-start, buf.length()));
+		memcpy(buf.data(), &(m_data[start]), min(m_length-start, buf.length()));
 	}
 
 private:
@@ -211,9 +213,10 @@ uint16_t MTPDataGet(void* params, void* priv,
 		shared_buf->cv_put.wait(lk, [shared_buf] { return shared_buf->done || shared_buf->size; });
 
 		if (shared_buf->size) {
-			size = _min(wantlen-(*gotlen), shared_buf->size);
+			size = min(wantlen-(*gotlen), shared_buf->size);
 			memcpy(data, shared_buf->data, size);
 			*gotlen += size;
+			data += size;
 			
 			shared_buf->size -= size;
 			shared_buf->data += size;
@@ -337,6 +340,30 @@ std::string Get_Friendlyname(mtpdevice_t device)
 	return result;
 }
 
+std::string Get_Modelname(mtpdevice_t device)
+{
+	char* fn = LIBMTP_Get_Modelname(device.m_device);
+	std::string result(fn);
+	//free(fn)
+	return result;
+}
+
+std::string Get_Serialnumber(mtpdevice_t device)
+{
+	char* fn = LIBMTP_Get_Serialnumber(device.m_device);
+	std::string result(fn);
+	//free(fn)
+	return result;
+}
+
+std::string Get_Deviceversion(mtpdevice_t device)
+{
+	char* fn = LIBMTP_Get_Deviceversion(device.m_device);
+	std::string result(fn);
+	//free(fn)
+	return result;
+}
+
 void Release_Device(mtpdevice_t device)
 {
 	LIBMTP_Release_Device(device.m_device);
@@ -423,6 +450,9 @@ NBIND_GLOBAL() {
 	function(Open_Raw_Device_Uncached);
 	function(Release_Device);
 	function(Get_Friendlyname);
+	function(Get_Modelname);
+	function(Get_Serialnumber);
+	function(Get_Deviceversion);
 	function(Get_Storage);
 	function(Get_Files_And_Folders);
 	function(Get_File_To_File);
