@@ -12,3 +12,4 @@ node_modules
 1.zip
 libmtp.mpd/config.log
 libmtp.mpd/doc/Makefile*
+*.gypi

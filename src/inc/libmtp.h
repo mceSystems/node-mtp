@@ -29,8 +29,8 @@
 #ifndef LIBMTP_H_INCLUSION_GUARD
 #define LIBMTP_H_INCLUSION_GUARD
 
-#define LIBMTP_VERSION @VERSION@
-#define LIBMTP_VERSION_STRING "@VERSION@"
+#define LIBMTP_VERSION 1.1.14
+#define LIBMTP_VERSION_STRING "1.1.14"
 
 /* This handles MSVC pecularities */
 #ifdef _MSC_VER
@@ -43,13 +43,13 @@
  * sys/types.h, but they exist in mingw32
  * sys/types.h.
  */
-typedef char int8_t;
-typedef unsigned char uint8_t;
-typedef __int16 int16_t;
-typedef unsigned __int16 uint16_t;
-typedef __int32 int32_t;
-typedef unsigned __int32 uint32_t;
-typedef unsigned __int64 uint64_t;
+// typedef char int8_t;
+// typedef unsigned char uint8_t;
+// typedef __int16 int16_t;
+// typedef unsigned __int16 uint16_t;
+// typedef __int32 int32_t;
+// typedef unsigned __int32 uint32_t;
+// typedef unsigned __int64 uint64_t;
 #else
 #include <sys/time.h>
 #endif
@@ -1057,6 +1057,13 @@ typedef void(* LIBMTP_event_cb_fn) (int, LIBMTP_event_t, uint32_t, void *);
 int LIBMTP_Read_Event(LIBMTP_mtpdevice_t *, LIBMTP_event_t *, uint32_t *);
 int LIBMTP_Read_Event_Async(LIBMTP_mtpdevice_t *, LIBMTP_event_cb_fn, void *);
 int LIBMTP_Handle_Events_Timeout_Completed(struct timeval *, int *);
+
+/**
+ * @}
+ * @defgroup custom Custom operations API.
+ * @{
+ */
+int LIBMTP_Custom_Operation(LIBMTP_mtpdevice_t *, uint16_t, int, ...);
 
 /** @} */
 

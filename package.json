@@ -11,7 +11,8 @@
     "ndts": "ndts",
 
     "-install": "autogypi --init-gyp -p nbind -s src/node-mtp.cc && node-gyp configure build",
-    "install": "node-gyp configure build",
+    "--install": "node-gyp configure build",
+    "install": "autogypi && node-gyp configure build",
     "test": "node test.js"
   },
   "repository": {

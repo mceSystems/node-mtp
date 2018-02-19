@@ -10,10 +10,10 @@
 			"conditions" : [
 				['OS=="win"', {
 					"include_dirs+": [
-						"libmtp.mpd/src"
+						"src/inc"
 					],
 					"libraries": [ 
-						"../libmtp.mpd/src/.libs/libmtp.dll.a" 
+						"../src/lib/libmtp-9.lib" 
 					]
 				}],
 				['OS!="win"', {
