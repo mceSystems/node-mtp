@@ -1,4 +1,8 @@
 {
+  "name": "mtp",
+  "version": "1.0.0",
+  "description": "libmtp wrapper",
+  "main": "mtp.js",
   "scripts": {
     "autogypi": "autogypi",
     "node-gyp": "node-gyp",
@@ -10,6 +14,20 @@
     "install": "node-gyp configure build",
     "test": "node test.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mceSystems/node-mtp.git"
+  },
+  "keywords": [
+    "mtp"
+  ],
+  "author": "mceSystems",
+  "license": "LGPL-2.1",
+  "gypfile": true,
+  "bugs": {
+    "url": "https://github.com/mceSystems/node-mtp/issues"
+  },
+  "homepage": "https://github.com/mceSystems/node-mtp#readme",
   "dependencies": {
     "autogypi": "^0.2.2",
     "nbind": "^0.3.6",
