@@ -47,7 +47,9 @@ public:
 
 	uint8_t getDevNum(){return m_rawDevice.devnum;}
 	void setDevNum(const uint8_t devNum){m_rawDevice.devnum = devNum;}
-	
+
+	char *getVendor() { return (NULL == m_rawDevice.device_entry.vendor) ? "" : m_rawDevice.device_entry.vendor; }
+
 	LIBMTP_raw_device_t* get(){return &m_rawDevice;}
 private:
 	LIBMTP_raw_device_t m_rawDevice;
@@ -433,6 +435,7 @@ NBIND_CLASS(raw_device_t){
 	construct<const raw_device_t&>();
 	getset(getBusLocation,setBusLocation);
 	getset(getDevNum,setDevNum);
+	getter(getVendor);
 }
 
 NBIND_CLASS(databuffer_t){
